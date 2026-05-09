@@ -1,0 +1,39 @@
+seed: 42
+device: cuda
+
+data:
+  train_images: data/train/images
+  train_annotations: data/train/annotations
+  val_images: data/val/images
+  val_annotations: data/val/annotations
+  image_size: [512, 512]
+  gaussian_sigma: 2.0
+  line_thickness: 1
+  render_scale: 4
+  num_workers: 4
+
+model:
+  encoder_name: nvidia/mit-b2
+  decoder_channels: [256, 128, 64, 32]
+  num_spec_filters: 16
+  hr_channels: 24
+  final_mid_channels: 32
+
+loss:
+  side_weights: [0.4, 0.3, 0.2, 0.1]
+  recall_weight: 1.0
+  main_weight: 1.0
+  center_weight: 1.0
+  s1_center_weight: 0.2
+  pos_weight: 10.0
+
+train:
+  epochs: 100
+  batch_size: 4
+  encoder_lr: 0.00001
+  decoder_lr: 0.0001
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  amp: true
+  output_dir: outputs/branch_heatmap
+  save_every: 10
