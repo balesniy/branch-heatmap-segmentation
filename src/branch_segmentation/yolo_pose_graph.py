@@ -440,8 +440,19 @@ def build_yolo_heatmap_topology(
     heatmap: np.ndarray,
     cluster_radius: float = 8.0,
     recover_missing: bool = True,
+    min_mean_prob: float = 0.25,
+    max_bad_ratio: float = 0.60,
+    max_tortuosity: float = 4.0,
+    low_prob: float = 0.30,
 ) -> TopologyGraph:
-    refined = refine_pose_detections(detections, heatmap)
+    refined = refine_pose_detections(
+        detections,
+        heatmap,
+        min_mean_prob=min_mean_prob,
+        max_bad_ratio=max_bad_ratio,
+        max_tortuosity=max_tortuosity,
+        low_prob=low_prob,
+    )
     graph = build_topology_graph(refined, cluster_radius=cluster_radius)
     graph = prune_low_confidence_dangling_edges(graph)
     if recover_missing:
