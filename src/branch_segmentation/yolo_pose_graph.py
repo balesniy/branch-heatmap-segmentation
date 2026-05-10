@@ -444,6 +444,12 @@ def build_yolo_heatmap_topology(
     max_bad_ratio: float = 0.60,
     max_tortuosity: float = 4.0,
     low_prob: float = 0.30,
+    recover_max_length: float = 80.0,
+    recover_min_p20_score: float = 0.35,
+    recover_min_distance_to_existing: float = 5.0,
+    prune_min_dangling_confidence: float = 0.20,
+    prune_min_dangling_mean_prob: float = 0.25,
+    prune_min_dangling_length: float = 12.0,
 ) -> TopologyGraph:
     refined = refine_pose_detections(
         detections,
@@ -454,12 +460,28 @@ def build_yolo_heatmap_topology(
         low_prob=low_prob,
     )
     graph = build_topology_graph(refined, cluster_radius=cluster_radius)
-    graph = prune_low_confidence_dangling_edges(graph)
+    graph = prune_low_confidence_dangling_edges(
+        graph,
+        min_dangling_confidence=prune_min_dangling_confidence,
+        min_dangling_mean_prob=prune_min_dangling_mean_prob,
+        min_dangling_length=prune_min_dangling_length,
+    )
     if recover_missing:
-        recovered = recover_heatmap_short_edges(graph, heatmap)
+        recovered = recover_heatmap_short_edges(
+            graph,
+            heatmap,
+            max_length=recover_max_length,
+            min_p20_score=recover_min_p20_score,
+            min_distance_to_existing=recover_min_distance_to_existing,
+        )
         if recovered:
             graph = build_topology_graph(graph.edges + recovered, cluster_radius=cluster_radius)
-            graph = prune_low_confidence_dangling_edges(graph)
+            graph = prune_low_confidence_dangling_edges(
+                graph,
+                min_dangling_confidence=prune_min_dangling_confidence,
+                min_dangling_mean_prob=prune_min_dangling_mean_prob,
+                min_dangling_length=prune_min_dangling_length,
+            )
     return graph
 
 
