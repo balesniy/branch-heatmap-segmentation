@@ -7,6 +7,7 @@ from typing import Iterable
 import numpy as np
 import torch
 import torch.nn.functional as F
+from scipy.spatial import cKDTree
 from skimage.morphology import dilation, disk, skeletonize
 
 
@@ -148,8 +149,15 @@ def _min_distances(source: np.ndarray, target: np.ndarray) -> np.ndarray:
         return np.zeros((0,), dtype=np.float32)
     if len(target) == 0:
         return np.full((len(source),), np.inf, dtype=np.float32)
-    diff = source[:, None, :] - target[None, :, :]
-    return np.sqrt(np.sum(diff * diff, axis=2)).min(axis=1)
+    distances, _ = cKDTree(target).query(source, k=1)
+    return np.asarray(distances, dtype=np.float32)
+
+
+def _concat_samples(samples: list[np.ndarray]) -> np.ndarray:
+    non_empty = [sample for sample in samples if len(sample)]
+    if not non_empty:
+        return np.zeros((0, 2), dtype=np.float32)
+    return np.concatenate(non_empty, axis=0).astype(np.float32)
 
 
 def polyline_geometry_metrics(
@@ -185,7 +193,7 @@ def coverage(source: np.ndarray, target: np.ndarray, tolerance: float) -> float:
     return float(np.mean(_min_distances(source, target) <= tolerance))
 
 
-def edge_f1(
+def edge_instance_f1(
     pred_polylines: list[Iterable[Iterable[float]]],
     gt_polylines: list[Iterable[Iterable[float]]],
     distance_tolerance: float = 3.0,
@@ -219,6 +227,69 @@ def edge_f1(
         "edge_precision": float(precision),
         "edge_recall": float(recall),
         "edge_f1": _f1(precision, recall),
+    }
+
+
+def edge_f1(
+    pred_polylines: list[Iterable[Iterable[float]]],
+    gt_polylines: list[Iterable[Iterable[float]]],
+    distance_tolerance: float = 3.0,
+    coverage_threshold: float | None = None,
+    sample_step: float = 1.0,
+) -> dict[str, float]:
+    """Length-weighted buffer coverage between predicted and GT graph geometry.
+
+    This intentionally ignores one-to-one edge ids. If one long branch is split into
+    several predicted segments, it still scores well as long as its sampled length is
+    covered inside ``distance_tolerance``.
+    """
+    pred_samples = [sample_polyline(line, step=sample_step) for line in pred_polylines]
+    gt_samples = [sample_polyline(line, step=sample_step) for line in gt_polylines]
+    pred_points = _concat_samples(pred_samples)
+    gt_points = _concat_samples(gt_samples)
+
+    if len(pred_points) == 0 and len(gt_points) == 0:
+        precision = recall = 1.0
+    elif len(pred_points) == 0 or len(gt_points) == 0:
+        precision = recall = 0.0
+    else:
+        pred_to_gt, _ = cKDTree(gt_points).query(
+            pred_points,
+            k=1,
+            distance_upper_bound=distance_tolerance,
+        )
+        gt_to_pred, _ = cKDTree(pred_points).query(
+            gt_points,
+            k=1,
+            distance_upper_bound=distance_tolerance,
+        )
+        precision = float(np.mean(pred_to_gt <= distance_tolerance))
+        recall = float(np.mean(gt_to_pred <= distance_tolerance))
+    return {
+        "edge_precision": float(precision),
+        "edge_recall": float(recall),
+        "edge_f1": _f1(float(precision), float(recall)),
+    }
+
+
+def edge_coverage_f1(
+    pred_polylines: list[Iterable[Iterable[float]]],
+    gt_polylines: list[Iterable[Iterable[float]]],
+    distance_tolerance: float = 3.0,
+    coverage_threshold: float = 0.75,
+    sample_step: float = 1.0,
+) -> dict[str, float]:
+    values = edge_f1(
+        pred_polylines,
+        gt_polylines,
+        distance_tolerance=distance_tolerance,
+        coverage_threshold=coverage_threshold,
+        sample_step=sample_step,
+    )
+    return {
+        "edge_coverage_precision": values["edge_precision"],
+        "edge_coverage_recall": values["edge_recall"],
+        "edge_coverage_f1": values["edge_f1"],
     }
 
 

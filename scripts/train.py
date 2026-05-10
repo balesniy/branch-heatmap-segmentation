@@ -90,6 +90,7 @@ def validate(model, loader, criterion, device, use_amp):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/train.yaml")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume training")
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text())
@@ -143,7 +144,25 @@ def main() -> None:
     scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
     best_score = -1.0
-    for epoch in range(1, cfg["train"]["epochs"] + 1):
+    start_epoch = 1
+    if args.resume:
+        resume_path = Path(args.resume)
+        if resume_path.exists():
+            print(f"==> Resuming training from {resume_path} ...", flush=True)
+            checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
+            
+            model.load_state_dict(checkpoint["model"])
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            scheduler.load_state_dict(checkpoint["scheduler"])
+            
+            start_epoch = checkpoint["epoch"] + 1
+            if "val_metrics" in checkpoint:
+                best_score = checkpoint["val_metrics"].get("cldice@2px", -1.0)
+            print(f"==> Resumed at epoch {start_epoch-1}. Best score was {best_score:.4f}", flush=True)
+        else:
+            print(f"==> WARNING: Resume checkpoint {resume_path} not found! Starting from scratch.", flush=True)
+
+    for epoch in range(start_epoch, cfg["train"]["epochs"] + 1):
         train_loss = train_one_epoch(
             model,
             train_loader,

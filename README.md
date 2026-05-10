@@ -93,12 +93,14 @@ The default inference path is heatmap-to-graph:
 model + TTA
 -> clipped and lightly blurred heatmap
 -> hysteresis threshold
--> skeleton
+-> ridge-NMS constrained skeleton
 -> junction-cluster graph construction
+-> small-cycle junction cleanup
 -> polyline tracing
 -> short low-score spur pruning
 -> small endpoint-gap bridging
 -> RDP simplification
+-> snap simplified points back to heatmap ridge
 ```
 
 Useful knobs:
@@ -108,12 +110,31 @@ PYTHONPATH=src python scripts/infer.py \
   --checkpoint outputs/branch_heatmap/best.pt \
   --image path/to/image.jpg \
   --output outputs/prediction.png \
-  --low-thr 0.2 \
+  --low-thr 0.35 \
   --high-thr 0.5 \
-  --blur-sigma 0.5 \
+  --centerline-mode ridge_skeleton \
+  --ridge-nms-size 3 \
+  --snap-radius 2 \
   --simplify-tol 1.0 \
   --tta original hflip vflip rot90 rot180 rot270
 ```
+
+## Vectorization Tuning
+
+For postprocess-only tuning, reuse saved `.heatmap.png` files and run:
+
+```bash
+PYTHONPATH=src python scripts/tune_vectorization.py \
+  --images-dir data/val/images \
+  --heatmap-dir outputs/infer_val \
+  --coco-json data/annotations_coco_polyline.json \
+  --output outputs/vector_tuning_summary.json
+```
+
+`edge_f1` is length-weighted KD-tree buffer coverage over sampled polylines. It
+does not penalize a visually correct branch just because graph tracing split it
+into several segments. The older one-to-one edge matcher is still available as
+`edge_instance_f1` for diagnosing fragmentation.
 
 ## Notes
 

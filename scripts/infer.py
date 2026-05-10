@@ -68,17 +68,29 @@ def main() -> None:
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--image", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--low-thr", type=float, default=0.2)
+    parser.add_argument("--low-thr", type=float, default=0.35)
     parser.add_argument("--high-thr", type=float, default=0.5)
     parser.add_argument("--blur-sigma", type=float, default=0.5)
-    parser.add_argument("--min-object-size", type=int, default=8)
-    parser.add_argument("--min-len", type=float, default=5.0)
+    parser.add_argument("--min-object-size", type=int, default=4)
+    parser.add_argument("--closing-radius", type=int, default=0)
+    parser.add_argument(
+        "--centerline-mode",
+        default="ridge_skeleton",
+        choices=["skeleton", "ridge", "ridge_skeleton"],
+    )
+    parser.add_argument("--ridge-nms-size", type=int, default=3)
+    parser.add_argument("--min-len", type=float, default=8.0)
     parser.add_argument("--simplify-tol", type=float, default=1.0)
-    parser.add_argument("--spur-min-length", type=float, default=12.0)
+    parser.add_argument("--spur-min-length", type=float, default=10.0)
     parser.add_argument("--spur-min-p20-score", type=float, default=0.25)
+    parser.add_argument("--edge-min-p20-score", type=float, default=0.0)
+    parser.add_argument("--edge-max-low-score-fraction", type=float, default=1.0)
+    parser.add_argument("--edge-keep-longer-than", type=float, default=80.0)
+    parser.add_argument("--cycle-collapse-max-length", type=float, default=15.0)
     parser.add_argument("--gap-max", type=float, default=6.0)
     parser.add_argument("--angle-max", type=float, default=40.0)
     parser.add_argument("--min-bridge-score", type=float, default=0.2)
+    parser.add_argument("--snap-radius", type=int, default=2)
     parser.add_argument("--no-bridge-gaps", action="store_true")
     parser.add_argument(
         "--tta",
@@ -113,14 +125,22 @@ def main() -> None:
         high=args.high_thr,
         blur_sigma=args.blur_sigma,
         min_object_size=args.min_object_size,
+        closing_radius=args.closing_radius,
+        centerline_mode=args.centerline_mode,
+        ridge_nms_size=args.ridge_nms_size,
         min_len=args.min_len,
         simplify_tol=args.simplify_tol,
         spur_min_length=args.spur_min_length,
         spur_min_p20_score=args.spur_min_p20_score,
+        edge_min_p20_score=args.edge_min_p20_score,
+        edge_max_low_score_fraction=args.edge_max_low_score_fraction,
+        edge_keep_longer_than=args.edge_keep_longer_than,
+        cycle_collapse_max_length=args.cycle_collapse_max_length,
         bridge_gaps=not args.no_bridge_gaps,
         gap_max=args.gap_max,
         angle_max=args.angle_max,
         min_bridge_score=args.min_bridge_score,
+        snap_radius=args.snap_radius,
     )
 
     output = Path(args.output)
