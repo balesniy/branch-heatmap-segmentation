@@ -136,6 +136,32 @@ does not penalize a visually correct branch just because graph tracing split it
 into several segments. The older one-to-one edge matcher is still available as
 `edge_instance_f1` for diagnosing fragmentation.
 
+## YOLO Pose Topology
+
+YOLO Pose can be used as an edge-candidate detector: one detection is one branch
+segment with two keypoints. The heatmap model then validates and bends each
+straight candidate into a branch curve:
+
+```text
+YOLO Pose detections
+-> endpoint clustering into graph nodes
+-> shortest path over branch probability heatmap
+-> edge support scoring: mean/min/p20 probability, bad ratio, tortuosity
+-> duplicate merge and dangling-edge pruning
+-> optional short-edge recovery from heatmap vectorization
+```
+
+Standalone graph construction from an image, a saved heatmap, and YOLO Pose
+weights:
+
+```bash
+PYTHONPATH=src python scripts/yolo_pose_graph.py \
+  --yolo-checkpoint yolo_pose_best.pt \
+  --image path/to/image.png \
+  --heatmap outputs/prediction.heatmap.png \
+  --output outputs/yolo_graph.png
+```
+
 ## Notes
 
 - Start with `hr_channels: 24`. If full-resolution images cause OOM, try `16`.
